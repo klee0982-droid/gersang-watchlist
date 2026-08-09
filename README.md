@@ -13,8 +13,9 @@ geota.co.kr 육의전 매물을 주기적으로 수집해서 Supabase에 쌓고,
 - `lib/alert.js` — 워치리스트 대비 저평가 판정 + `gersang_alerts` 테이블 기록 + 중복 기록 방지
 - `lib/renderSite.js` — 대시보드 HTML 렌더링 (순수 함수, DB 접근 없음)
 - `scripts/diagnose.js` — 1회성 진단 (실제 파싱이 되는지 눈으로 확인)
-- `scripts/collect.js` — 수집 + 저장 + 저평가 판정 (3분마다 실행됨)
+- `scripts/collect.js` — 수집 + 저장 + 저평가 판정 (기본 15분마다, FAST_MODE 켜면 2분마다)
 - `scripts/updateWatchlist.js` — 그룹A(최다등록 20개)/그룹B(1,000만원 이상) 통계 갱신 (매일 새벽 3시)
+- `scripts/cleanupListings.js` — 오래된 원본 매물/알림 기록 삭제 (매일 새벽 3시, Supabase 용량 관리)
 - `scripts/generateSite.js` — Supabase 데이터로 `site/index.html` 생성 (수집/갱신 후 매번 실행)
 - `.github/workflows/scrape.yml` — GitHub Actions 스케줄 + GitHub Pages 배포
 
@@ -78,6 +79,34 @@ repo → Settings → Pages → Build and deployment → Source를
 Actions 탭에서 "Run workflow"로 수동 실행도 가능. 첫 실행 후 위 대시보드
 URL에서 확인.
 
+## 수집 주기: 기본(15분) vs 플레이 중(2분)
+
+시세를 계속 파악하는 것(DB 적재)과 실제로 매수 타이밍을 잡는 것(빠른 반응)은
+목적이 달라서 둘로 나눠놨음:
+
+- **기본 주기(15분)**: 항상 자동으로 돌아감. 별도 조작 불필요.
+- **빠른 주기(2분)**: `FAST_MODE`라는 GitHub 저장소 변수가 `true`일 때만 실제로
+  수집함. 게임 할 때만 켜두면 됨.
+
+**켜고 끄는 법** — repo → Settings → Secrets and variables → Actions →
+**Variables** 탭 → `FAST_MODE` 값을 `true`/`false`로 수정.
+(또는 터미널에서: `gh variable set FAST_MODE --body true` / `--body false`)
+
+끄는 걸 잊어도 큰 문제는 없음 — 기본 주기는 항상 별도로 돌아가니까 데이터가
+끊기진 않고, 다만 `FAST_MODE`를 켜둔 채로 오래 두면 아래 저장공간 정리
+주기보다 데이터가 더 빨리 쌓일 수 있음.
+
+## Supabase 저장공간 관리
+
+`gersang_listings`는 수집 때마다 그 시점 매물을 새 행으로 계속 추가만 하고
+지우지 않으므로 무한정 쌓임. 이 프로젝트가 다른 앱과 Supabase 무료 티어
+(500MB)를 같이 쓰고 있어서, 방치하면 몇 달 안에 한도를 채울 수 있음.
+
+`updateWatchlist.js`는 최근 `STATS_WINDOW_DAYS`(45일)만 보므로 그보다 오래된
+원본 데이터는 다시 쓰이지 않음 — 그래서 `scripts/cleanupListings.js`가 매일
+새벽 3시에 `LISTING_RETENTION_DAYS`(60일)/`ALERT_RETENTION_DAYS`(90일)보다
+오래된 행을 삭제함.
+
 ## 튜닝 포인트 (`lib/config.js`)
 
 | 값 | 기본값 | 의미 |
@@ -89,6 +118,8 @@ URL에서 확인.
 | `MIN_SAMPLES_FOR_STATS` | 2 | 통계 낼 최소 샘플 수 (낮을수록 그룹B 편입은 늘지만 노이즈도 늘어남) |
 | `STATS_WINDOW_DAYS` | 45 | 중앙값 계산에 쓸 관측 기간 |
 | `ALERT_DEDUPE_MINUTES` | 90 | 같은 매물 중복 기록 방지 시간 |
+| `LISTING_RETENTION_DAYS` | 60 | 원본 매물 기록 보관 기간 (이후 자동 삭제) |
+| `ALERT_RETENTION_DAYS` | 90 | 알림 기록 보관 기간 (이후 자동 삭제) |
 
 ## 알려진 한계
 
@@ -99,11 +130,13 @@ URL에서 확인.
   픽스처로 이 스키마를 검증하므로, 구조 변경 시 테스트가 먼저 깨져 알려줌.
 - "등록가"만 보므로 실제 체결 가능 여부(이미 팔렸는지 등)는 확인 못 함 —
   대시보드에서 저평가 매물을 확인하면 직접 게임 내에서 확인 후 매수할 것.
-- 대시보드는 3분 주기 수집 직후에만 갱신되므로 실시간 알림은 아님(Slack 푸시
-  대신 사이트를 직접 확인해야 함).
+- 대시보드는 수집 직후에만 갱신되므로 실시간 알림은 아님(기본 주기엔 최대 15분,
+  FAST_MODE 켜면 최대 2분 지연 — Slack 푸시 대신 사이트를 직접 확인해야 함).
 - 거타 이용약관/robots.txt에 자동 수집을 명시적으로 금지하는 조항은
-  발견되지 않았으나, 완전한 법적 검토는 아니므로 과도하게 잦은 요청은 피할 것
-  (현재 3분 주기 × 페이지 10개 × 페이지 간 1.5초 딜레이 = 하루 약 4,800요청.
-  GitHub Actions의 스케줄 트리거도 5분 미만은 공식적으로 보장되지 않으므로
-  실제 주기는 부하 상황에 따라 다소 밀릴 수 있음. 만약 geota가 접근을
-  차단하는 정황이 보이면 즉시 주기를 늘릴 것).
+  발견되지 않았으나, 완전한 법적 검토는 아니므로 과도하게 잦은 요청은 피할 것.
+  기본 주기만이면 하루 약 960요청(15분 × 10페이지), `FAST_MODE`를 하루 종일
+  켜두면 최대 약 8,200요청까지 늘어남 — 게임 할 때만 켰다가 끄는 걸 권장.
+  GitHub Actions의 스케줄 트리거도 5분 미만(FAST_MODE 주기)은 공식적으로
+  보장되지 않으므로 실제 주기는 부하 상황에 따라 다소 밀릴 수 있음. 만약
+  geota가 접근을 차단하는 정황이 보이면 즉시 FAST_MODE를 끄고 기본 주기도
+  늘릴 것.

@@ -8,6 +8,7 @@
     "collect": "node scripts/collect.js",
     "watchlist": "node scripts/updateWatchlist.js",
     "build-site": "node scripts/generateSite.js",
+    "cleanup": "node scripts/cleanupListings.js",
     "test": "node tests/parse.test.mjs && node tests/renderSite.test.mjs"
   },
   "dependencies": {

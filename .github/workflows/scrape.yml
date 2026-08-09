@@ -2,9 +2,10 @@ name: Gersang Watchlist
 
 on:
   schedule:
-    - cron: '*/3 * * * *'    # 3분마다 매물 수집 + 알림 체크
-    - cron: '0 18 * * *'      # 매일 03:00 KST(=UTC 18:00 전날)에 워치리스트 갱신
-  workflow_dispatch:          # 수동 실행 버튼
+    - cron: '*/15 * * * *'   # 기본 수집 주기 — 항상 실행 (DB 유지용)
+    - cron: '*/2 * * * *'    # 빠른 수집 주기 — FAST_MODE 변수가 true일 때만 실제로 실행됨
+    - cron: '0 18 * * *'     # 매일 03:00 KST(=UTC 18:00 전날)에 워치리스트 갱신 + 오래된 데이터 정리
+  workflow_dispatch:         # 수동 실행 버튼
 
 permissions:
   contents: read
@@ -13,7 +14,10 @@ permissions:
 
 jobs:
   collect:
-    if: github.event.schedule == '*/3 * * * *' || github.event_name == 'workflow_dispatch'
+    if: >
+      github.event.schedule == '*/15 * * * *' ||
+      (github.event.schedule == '*/2 * * * *' && vars.FAST_MODE == 'true') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     concurrency:
       group: pages
@@ -61,6 +65,10 @@ jobs:
           node-version: '22'
       - run: npm ci
       - run: npm run watchlist
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - run: npm run cleanup
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
