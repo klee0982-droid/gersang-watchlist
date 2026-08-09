@@ -43,7 +43,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   update-watchlist:
-    if: github.event.schedule == '0 18 * * *'
+    if: github.event.schedule == '0 18 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     concurrency:
       group: pages
