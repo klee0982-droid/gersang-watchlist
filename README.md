@@ -17,7 +17,7 @@ geota.co.kr 육의전 매물을 주기적으로 수집해서 Supabase에 쌓고,
 - `scripts/updateWatchlist.js` — 그룹A(최다등록 20개)/그룹B(1,000만원 이상) 통계 갱신 (매일 새벽 3시)
 - `scripts/cleanupListings.js` — 오래된 원본 매물/알림 기록 삭제 (매일 새벽 3시, Supabase 용량 관리)
 - `scripts/generateSite.js` — Supabase 데이터로 `site/index.html` 생성 (수집/갱신 후 매번 실행)
-- `.github/workflows/scrape.yml` — GitHub Actions 스케줄 + GitHub Pages 배포
+- `.github/workflows/scrape.yml` — GitHub Actions 스케줄 + GitHub Pages 배포 + 월간 점검 이슈 생성
 
 ## 최초 설정
 
@@ -95,6 +95,14 @@ URL에서 확인.
 끄는 걸 잊어도 큰 문제는 없음 — 기본 주기는 항상 별도로 돌아가니까 데이터가
 끊기진 않고, 다만 `FAST_MODE`를 켜둔 채로 오래 두면 아래 저장공간 정리
 주기보다 데이터가 더 빨리 쌓일 수 있음.
+
+## 월간 점검 알림
+
+이 시스템은 껐다 켰다 하는 스위치가 없어서 — 잊고 방치하면 계속 도는 구조임.
+그래서 매달 1일 09:00 KST에 워크플로우가 이 repo에 GitHub 이슈를 자동으로
+하나 만듦 ("계속 쓰시나요?"). GitHub 알림(이메일/웹)으로 뜨니, 계속 쓸 거면
+이슈를 닫고, 그만 쓸 거면 repo → Settings → Actions → General에서
+Actions를 꺼주면 됨 — 그러면 geota 요청/Supabase 적재가 전부 멈춤.
 
 ## Supabase 저장공간 관리
 
