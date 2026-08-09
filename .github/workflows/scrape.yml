@@ -39,8 +39,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+          name: collect-pages
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: collect-pages
 
   update-watchlist:
     if: github.event.schedule == '0 18 * * *' || github.event_name == 'workflow_dispatch'
@@ -69,5 +72,8 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+          name: watchlist-pages
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: watchlist-pages
