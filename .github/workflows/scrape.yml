@@ -2,7 +2,7 @@ name: Gersang Watchlist
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # 10분마다 매물 수집 + 알림 체크
+    - cron: '*/3 * * * *'    # 3분마다 매물 수집 + 알림 체크
     - cron: '0 18 * * *'      # 매일 03:00 KST(=UTC 18:00 전날)에 워치리스트 갱신
   workflow_dispatch:          # 수동 실행 버튼
 
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   collect:
-    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '*/3 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     concurrency:
       group: pages
