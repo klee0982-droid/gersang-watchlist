@@ -1,15 +1,17 @@
 name: Gersang Watchlist
 
-# 스케줄 트리거가 신규 저장소에서 몇 시간씩 인식이 지연되는 경우가 있음(GitHub
-# 측 알려진 이슈) — 이 파일에 커밋이 새로 들어가면 재동기화되는 걸로 보고됨.
-# 마지막 재동기화 시도: 2026-08-09 13:15 KST
+# 참고: GitHub Actions의 schedule 트리거는 "베스트 에포트"라 부하 상황에서
+# 조용히 누락/지연될 수 있음(공식 문서에 명시된 한계). 실측 결과 */15 설정이
+# 실제로는 시간당 1회 정도로 밀리는 걸 확인함(2026-08-09). 그래서 짧은 주기
+# (FAST_MODE, */2)는 제거하고, 즉시 새로고침이 필요할 땐 Actions 탭의
+# "Run workflow" 버튼(= workflow_dispatch, 실측상 100% 즉시 성공)을 직접
+# 누르는 걸 기본 방법으로 함 — 대시보드에 바로가기 링크가 있음.
 on:
   schedule:
-    - cron: '*/15 * * * *'   # 기본 수집 주기 — 항상 실행 (DB 유지용)
-    - cron: '*/2 * * * *'    # 빠른 수집 주기 — FAST_MODE 변수가 true일 때만 실제로 실행됨
+    - cron: '*/15 * * * *'   # 기본 수집 주기 (베스트 에포트 — 실제로는 더 늦게 돌 수 있음)
     - cron: '0 18 * * *'     # 매일 03:00 KST(=UTC 18:00 전날)에 워치리스트 갱신 + 오래된 데이터 정리
     - cron: '0 0 1 * *'      # 매달 1일 09:00 KST에 "아직 쓰시나요?" 점검 이슈 생성
-  workflow_dispatch:         # 수동 실행 버튼
+  workflow_dispatch:         # 수동 실행 버튼 — 즉시 새로고침하고 싶을 때 이걸 누르면 됨
 
 permissions:
   contents: read
@@ -18,10 +20,7 @@ permissions:
 
 jobs:
   collect:
-    if: >
-      github.event.schedule == '*/15 * * * *' ||
-      (github.event.schedule == '*/2 * * * *' && vars.FAST_MODE == 'true') ||
-      github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     concurrency:
       group: pages
@@ -99,7 +98,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          BODY=$(printf '이 저장소는 기본 15분 주기로 계속 자동 수집 중입니다 (FAST_MODE를 켠 상태라면 2분 주기).\n\n- **계속 쓰신다면**: 이 이슈는 그냥 닫아주세요.\n- **그만 쓰신다면**: repo → Settings → Actions → General → "Disable Actions"(또는 이 워크플로우만 Disable)로 꺼주세요. geota.co.kr로 나가는 요청과 Supabase 적재가 함께 멈춥니다.\n\n매달 1일에 자동으로 생성되는 알림입니다.')
+          BODY=$(printf '이 저장소는 기본 15분 주기로 계속 자동 수집 중입니다 (GitHub 스케줄러 특성상 실제로는 더 늦게 돌 수 있음 — 즉시 새로고침하려면 대시보드의 "지금 새로고침" 링크로 Run workflow를 누르세요).\n\n- **계속 쓰신다면**: 이 이슈는 그냥 닫아주세요.\n- **그만 쓰신다면**: repo → Settings → Actions → General → "Disable Actions"(또는 이 워크플로우만 Disable)로 꺼주세요. geota.co.kr로 나가는 요청과 Supabase 적재가 함께 멈춥니다.\n\n매달 1일에 자동으로 생성되는 알림입니다.')
           gh issue create \
             --repo "${{ github.repository }}" \
             --title "월간 점검 — 거상 시세 모니터링, 계속 쓰시나요?" \
