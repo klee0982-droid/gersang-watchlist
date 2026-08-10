@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { supabase } from '../lib/supabase.js';
 import { renderSiteHtml } from '../lib/renderSite.js';
+import { buildPriceTrends } from '../lib/priceTrends.js';
 
 // 스파크라인용 최근 추이 조회 기간. STATS_WINDOW_DAYS(45일) 전체보다는
 // 짧게 잡아야 "최근 흐름"을 한눈에 보는 용도에 맞음.
@@ -8,15 +9,6 @@ const TREND_WINDOW_DAYS = 14;
 // 아이템당 이 개수보다 점이 많으면 등간격으로 솎아냄 (데이터가 몇 주치
 // 쌓여도 SVG 경로가 무한정 길어지지 않게).
 const MAX_POINTS_PER_ITEM = 60;
-
-function downsample(points, max) {
-  if (points.length <= max) return points;
-  const step = points.length / max;
-  const out = [];
-  for (let i = 0; i < max; i++) out.push(points[Math.floor(i * step)]);
-  out.push(points[points.length - 1]);
-  return out;
-}
 
 async function fetchPriceTrends(itemNames) {
   if (itemNames.length === 0) return new Map();
@@ -34,18 +26,8 @@ async function fetchPriceTrends(itemNames) {
     .limit(20000);
   if (error) throw new Error(`가격 추이 조회 실패: ${error.message}`);
 
-  const byItem = new Map();
-  for (const row of data || []) {
-    if (!wanted.has(row.item_name)) continue;
-    const t = new Date(row.collected_at).getTime();
-    const list = byItem.get(row.item_name) ?? [];
-    list.push({ t, price: row.price });
-    byItem.set(row.item_name, list);
-  }
-  for (const [name, points] of byItem) {
-    byItem.set(name, downsample(points, MAX_POINTS_PER_ITEM));
-  }
-  return byItem;
+  const rows = (data || []).filter((row) => wanted.has(row.item_name));
+  return buildPriceTrends(rows, { maxPointsPerItem: MAX_POINTS_PER_ITEM });
 }
 
 async function main() {
