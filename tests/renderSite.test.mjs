@@ -67,12 +67,36 @@ const html = renderSiteHtml({
     },
   ],
   priceTrends,
+  insights: [
+    {
+      itemName: '<위험한 인사이트템>',
+      groupLabel: 'A(최다등록)',
+      alertCount: 5,
+      avgDeviationPct: -0.155,
+      sampleCount: 20,
+      medianPrice: 3500000,
+    },
+    {
+      // 워치리스트 매칭 안 된 케이스 (groupLabel/sampleCount/medianPrice null)
+      itemName: '고아템',
+      groupLabel: null,
+      alertCount: 1,
+      avgDeviationPct: -0.4,
+      sampleCount: null,
+      medianPrice: null,
+    },
+  ],
+  insightWindowDays: 14,
   alertWindowHours: 2,
   generatedAt: '2026-08-09T04:10:00.000Z',
 });
 
 check(html.includes('<!doctype html>'), '유효한 HTML 문서로 렌더링됨');
 check(html.includes('최근 저평가 매물 (2시간 이내)'), '알림 섹션 제목에 표시 시간 범위가 명시됨');
+check(html.includes('지켜볼 가치가 있는 아이템 (최근 14일)'), '인사이트 섹션 제목에 조회 기간이 명시됨');
+check(html.includes('&lt;위험한 인사이트템&gt;'), '인사이트 아이템명도 HTML 이스케이프됨');
+check(html.includes('-15.5%'), '인사이트 평균 할인율이 퍼센트로 표시됨');
+check(html.includes('고아템'), '워치리스트 매칭 안 된 인사이트 항목도 렌더링됨(그룹/표본/중앙값은 "-")');
 check(html.includes('&lt;위험한 이름&gt;'), 'HTML 이스케이프 처리됨 (XSS 방지)');
 check(!html.includes('<위험한 이름>'), '이스케이프 안 된 원본 태그가 남아있지 않음');
 check(html.includes('혼의결정'), '워치리스트 항목이 렌더링됨');
@@ -93,11 +117,14 @@ const emptyHtml = renderSiteHtml({
   alerts: [],
   watchlist: [],
   priceTrends: new Map(),
+  insights: [],
+  insightWindowDays: 14,
   alertWindowHours: 2,
   generatedAt: '2026-08-09T04:10:00.000Z',
 });
 check(emptyHtml.includes('최근 2시간 내 저평가 매물이 없습니다'), '알림 빈 상태 메시지에 표시 시간 범위가 명시됨');
 check(emptyHtml.includes('워치리스트 데이터가 아직 없습니다'), '워치리스트 빈 상태 메시지 표시');
+check(emptyHtml.includes('아직 데이터가 부족해 인사이트를 계산할 수 없습니다'), '인사이트 빈 상태 메시지 표시');
 
 // priceTrends를 아예 안 넘겨도(undefined) 죽지 않는지 (옵셔널 체이닝 확인)
 const noTrendsHtml = renderSiteHtml({

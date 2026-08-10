@@ -9,7 +9,7 @@
     "watchlist": "node scripts/updateWatchlist.js",
     "build-site": "node scripts/generateSite.js",
     "cleanup": "node scripts/cleanupListings.js",
-    "test": "node tests/parse.test.mjs && node tests/renderSite.test.mjs && node tests/priceTrends.test.mjs"
+    "test": "node tests/parse.test.mjs && node tests/renderSite.test.mjs && node tests/priceTrends.test.mjs && node tests/insights.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"

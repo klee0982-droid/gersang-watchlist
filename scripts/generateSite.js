@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { supabase } from '../lib/supabase.js';
 import { renderSiteHtml } from '../lib/renderSite.js';
 import { buildPriceTrends } from '../lib/priceTrends.js';
+import { computeItemInsights } from '../lib/insights.js';
 import { CONFIG } from '../lib/config.js';
 
 // 스파크라인용 최근 추이 조회 기간. STATS_WINDOW_DAYS(45일) 전체보다는
@@ -47,19 +48,35 @@ async function main() {
     .order('median_price', { ascending: false });
   if (watchlistError) throw new Error(`워치리스트 조회 실패: ${watchlistError.message}`);
 
+  // "지금 싼 것"과 별개로 "계속 지켜볼 가치가 있는 것"을 뽑으려면 훨씬 긴
+  // 기간의 알림 이력이 필요함 (표시용 2시간 창과는 목적이 다름).
+  const insightCutoff = new Date(Date.now() - CONFIG.INSIGHT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data: insightAlerts, error: insightAlertsError } = await supabase
+    .from('gersang_alerts')
+    .select('item_name, deviation_pct')
+    .gte('alerted_at', insightCutoff)
+    .limit(5000);
+  if (insightAlertsError) throw new Error(`인사이트용 알림 이력 조회 실패: ${insightAlertsError.message}`);
+
+  const insights = computeItemInsights(insightAlerts || [], watchlist || [], { topN: CONFIG.INSIGHT_TOP_N });
+
   const priceTrends = await fetchPriceTrends((watchlist || []).map((w) => w.item_name));
 
   const html = renderSiteHtml({
     alerts: alerts || [],
     watchlist: watchlist || [],
     priceTrends,
+    insights,
+    insightWindowDays: CONFIG.INSIGHT_WINDOW_DAYS,
     alertWindowHours: CONFIG.ALERT_DISPLAY_WINDOW_HOURS,
     generatedAt: new Date().toISOString(),
   });
 
   mkdirSync('site', { recursive: true });
   writeFileSync('site/index.html', html);
-  console.log(`site/index.html 생성 완료 (알림 ${alerts?.length ?? 0}건, 워치리스트 ${watchlist?.length ?? 0}건)`);
+  console.log(
+    `site/index.html 생성 완료 (알림 ${alerts?.length ?? 0}건, 워치리스트 ${watchlist?.length ?? 0}건, 인사이트 ${insights.length}건)`
+  );
 }
 
 main().catch((err) => {
