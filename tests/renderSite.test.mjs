@@ -67,10 +67,12 @@ const html = renderSiteHtml({
     },
   ],
   priceTrends,
+  alertWindowHours: 2,
   generatedAt: '2026-08-09T04:10:00.000Z',
 });
 
 check(html.includes('<!doctype html>'), '유효한 HTML 문서로 렌더링됨');
+check(html.includes('최근 저평가 매물 (2시간 이내)'), '알림 섹션 제목에 표시 시간 범위가 명시됨');
 check(html.includes('&lt;위험한 이름&gt;'), 'HTML 이스케이프 처리됨 (XSS 방지)');
 check(!html.includes('<위험한 이름>'), '이스케이프 안 된 원본 태그가 남아있지 않음');
 check(html.includes('혼의결정'), '워치리스트 항목이 렌더링됨');
@@ -87,8 +89,14 @@ check((html.match(/fill="var\(--accent\)"/g) || []).length >= 1, '스파크라�
 check(html.includes('데이터 부족'), '표본 부족 시 스파크라인 대신 안내 텍스트 표시');
 
 // 빈 데이터에서도 깨지지 않는지
-const emptyHtml = renderSiteHtml({ alerts: [], watchlist: [], priceTrends: new Map(), generatedAt: '2026-08-09T04:10:00.000Z' });
-check(emptyHtml.includes('최근 저평가 매물이 없습니다'), '알림 빈 상태 메시지 표시');
+const emptyHtml = renderSiteHtml({
+  alerts: [],
+  watchlist: [],
+  priceTrends: new Map(),
+  alertWindowHours: 2,
+  generatedAt: '2026-08-09T04:10:00.000Z',
+});
+check(emptyHtml.includes('최근 2시간 내 저평가 매물이 없습니다'), '알림 빈 상태 메시지에 표시 시간 범위가 명시됨');
 check(emptyHtml.includes('워치리스트 데이터가 아직 없습니다'), '워치리스트 빈 상태 메시지 표시');
 
 // priceTrends를 아예 안 넘겨도(undefined) 죽지 않는지 (옵셔널 체이닝 확인)
@@ -106,6 +114,7 @@ const noTrendsHtml = renderSiteHtml({
       updated_at: '2026-08-09T03:00:00.000Z',
     },
   ],
+  alertWindowHours: 2,
   generatedAt: '2026-08-09T04:10:00.000Z',
 });
 check(noTrendsHtml.includes('테스트템'), 'priceTrends 미전달 시에도 워치리스트 행이 죽지 않고 렌더링됨');

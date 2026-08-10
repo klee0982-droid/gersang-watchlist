@@ -123,6 +123,7 @@ Actions를 꺼주면 됨 — 그러면 geota 요청/Supabase 적재가 전부 �
 | `MIN_SAMPLES_FOR_STATS` | 2 | 통계 낼 최소 샘플 수 (낮을수록 그룹B 편입은 늘지만 노이즈도 늘어남) |
 | `STATS_WINDOW_DAYS` | 45 | 중앙값 계산에 쓸 관측 기간 |
 | `ALERT_DEDUPE_MINUTES` | 90 | 같은 매물 중복 기록 방지 시간 |
+| `ALERT_DISPLAY_WINDOW_HOURS` | 2 | 대시보드 "최근 저평가 매물" 표에 보여줄 시간 범위 (DB 삭제 아님, 화면 노출만 제한) |
 | `LISTING_RETENTION_DAYS` | 60 | 원본 매물 기록 보관 기간 (이후 자동 삭제) |
 | `ALERT_RETENTION_DAYS` | 90 | 알림 기록 보관 기간 (이후 자동 삭제) |
 

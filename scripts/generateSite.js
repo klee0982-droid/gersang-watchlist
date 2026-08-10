@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { supabase } from '../lib/supabase.js';
 import { renderSiteHtml } from '../lib/renderSite.js';
 import { buildPriceTrends } from '../lib/priceTrends.js';
+import { CONFIG } from '../lib/config.js';
 
 // 스파크라인용 최근 추이 조회 기간. STATS_WINDOW_DAYS(45일) 전체보다는
 // 짧게 잡아야 "최근 흐름"을 한눈에 보는 용도에 맞음.
@@ -31,11 +32,13 @@ async function fetchPriceTrends(itemNames) {
 }
 
 async function main() {
+  const alertCutoff = new Date(Date.now() - CONFIG.ALERT_DISPLAY_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
   const { data: alerts, error: alertsError } = await supabase
     .from('gersang_alerts')
     .select('*')
+    .gte('alerted_at', alertCutoff)
     .order('alerted_at', { ascending: false })
-    .limit(100);
+    .limit(200);
   if (alertsError) throw new Error(`알림 조회 실패: ${alertsError.message}`);
 
   const { data: watchlist, error: watchlistError } = await supabase
@@ -50,6 +53,7 @@ async function main() {
     alerts: alerts || [],
     watchlist: watchlist || [],
     priceTrends,
+    alertWindowHours: CONFIG.ALERT_DISPLAY_WINDOW_HOURS,
     generatedAt: new Date().toISOString(),
   });
 
