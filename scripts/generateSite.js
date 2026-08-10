@@ -21,11 +21,14 @@ function downsample(points, max) {
 async function fetchPriceTrends(itemNames) {
   if (itemNames.length === 0) return new Map();
 
+  // 아이템명에 괄호("+5 반고의귀걸이(외형전용)" 등)가 섞여 있으면 PostgREST의
+  // in.(a,b,c) 필터 문법이 깨지므로, .in()으로 서버에서 거르지 않고 날짜
+  // 범위로만 가져온 뒤 JS에서 워치리스트 아이템만 골라낸다.
+  const wanted = new Set(itemNames);
   const cutoff = new Date(Date.now() - TREND_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('gersang_listings')
     .select('item_name, collected_at, price')
-    .in('item_name', itemNames)
     .gte('collected_at', cutoff)
     .order('collected_at', { ascending: true })
     .limit(20000);
@@ -33,6 +36,7 @@ async function fetchPriceTrends(itemNames) {
 
   const byItem = new Map();
   for (const row of data || []) {
+    if (!wanted.has(row.item_name)) continue;
     const t = new Date(row.collected_at).getTime();
     const list = byItem.get(row.item_name) ?? [];
     list.push({ t, price: row.price });
